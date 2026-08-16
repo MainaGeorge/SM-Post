@@ -1,5 +1,6 @@
 using Confluent.Kafka;
 using CQRS.Core.Domain;
+using CQRS.Core.Events;
 using CQRS.Core.Handlers;
 using CQRS.Core.Infrastructure;
 using CQRS.Core.Producers;
@@ -21,6 +22,19 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddControllers();
 BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+
+// Register the event classes for deserialization in mongo
+var eventTypes = typeof(BaseEvent).Assembly.GetTypes()
+    .Where(t => typeof(BaseEvent).IsAssignableFrom(t) && !t.IsAbstract);
+
+foreach (var type in eventTypes)
+{
+    if (!BsonClassMap.IsClassMapRegistered(type))
+    {
+        BsonClassMap.LookupClassMap(type);
+    }
+}
+
 builder.Services.Configure<MongoDbConfig>(builder.Configuration.GetSection(nameof(MongoDbConfig)));
 builder.Services.Configure<ProducerConfig>(builder.Configuration.GetSection(nameof(ProducerConfig)));
 builder.Services.AddScoped<IEventStoreRepository, EventStoreRepository>();
