@@ -1,14 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Post.Query.Domain.Repository;
 using Post.Query.Infrastructure.DataAccess;
+using Post.Query.Infrastructure.Handlers;
+using Post.Query.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-Action<DbContextOptionsBuilder> configureDbContext = opts => opts.UseLazyLoadingProxies().UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"));
-builder.Services.AddDbContext<DatabaseContext>(configureDbContext);
-builder.Services.AddSingleton(new DatabaseContextFactory(configureDbContext));
+builder.Services.AddDbContext<DatabaseContext>(opts => opts.UseLazyLoadingProxies().UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
+builder.Services.AddSingleton(new DatabaseContextFactory(opts => opts.UseLazyLoadingProxies().UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"))));
+builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+builder.Services.AddScoped<IEventHandler, Post.Query.Infrastructure.Handlers.EventHandler>();
 
 var app = builder.Build();
 

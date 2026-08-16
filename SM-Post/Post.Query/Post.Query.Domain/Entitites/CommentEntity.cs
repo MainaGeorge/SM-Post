@@ -13,6 +13,7 @@ public class CommentEntity
     public DateTime CommentDate { get; set; }
     public bool Edited { get; set; }
     public Guid PostId { get; set; }
+    public string Comment { get; set; }
 
     [JsonIgnore]
     public virtual PostEntity Post { get; set; }
