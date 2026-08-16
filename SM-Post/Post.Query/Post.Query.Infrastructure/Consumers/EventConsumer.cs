@@ -25,14 +25,11 @@ public class EventConsumer(IOptions<ConsumerConfig> config, IEventHandler eventH
 
             if (consumerResult?.Message == null) continue;
 
-            var options = new JsonSerializerOptions { Converters = { new EventJsonConverter() } };
-
-            var @event = JsonSerializer.Deserialize<BaseEvent>(consumerResult.Message.Value, options);
+            var @event = JsonSerializer.Deserialize<BaseEvent>(consumerResult.Message.Value, options: new JsonSerializerOptions { Converters = { new EventJsonConverter() } });
 
             var handlerMethod = eventHandler.GetType().GetMethod("On", [@event.GetType()]);
 
-            if (handlerMethod is null)
-                throw new ArgumentNullException(nameof(handlerMethod), "could not find handler event method!");
+            ArgumentNullException.ThrowIfNull(handlerMethod, "could not find handler event method!");
 
             handlerMethod.Invoke(eventHandler, [@event]);
 

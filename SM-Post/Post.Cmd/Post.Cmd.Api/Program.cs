@@ -3,6 +3,9 @@ using CQRS.Core.Domain;
 using CQRS.Core.Handlers;
 using CQRS.Core.Infrastructure;
 using CQRS.Core.Producers;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 using Post.Cmd.Api.Commands;
 using Post.Cmd.Domain.Aggregates;
 using Post.Cmd.Infrastructure.Config;
@@ -16,7 +19,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddControllers();
+BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 builder.Services.Configure<MongoDbConfig>(builder.Configuration.GetSection(nameof(MongoDbConfig)));
 builder.Services.Configure<ProducerConfig>(builder.Configuration.GetSection(nameof(ProducerConfig)));
 builder.Services.AddScoped<IEventStoreRepository, EventStoreRepository>();
@@ -24,54 +28,35 @@ builder.Services.AddScoped<IEventProducer, EventProducer>();
 builder.Services.AddScoped<IEventStore, EventStore>();
 builder.Services.AddScoped<IEventSourcingHandler<PostAggregate>, EventSourcingHandler>();
 builder.Services.AddScoped<ICommandHandler, CommandHandler>();
-builder.Services.AddSingleton<ICommandDispacher>(sp =>
+builder.Services.AddSingleton<ICommandDispatcher>(sp =>
 {
-    var commandHandler = sp.GetRequiredService<ICommandHandler>();
+    // Resolve IServiceScopeFactory (Singleton) instead of the Scoped handler directly
+    var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
     var dispatcher = new CommandDispatcher();
-    dispatcher.RegisterHandler<NewPostCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<EditMessageCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<LikePostCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<AddCommentCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<EditCommentCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<RemoveCommentCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<DeletePostCommand>(commandHandler.HandleAsync);
-    dispatcher.RegisterHandler<DeleteCommentCommand>(commandHandler.HandleAsync);
+
+    // Helper method to create a new scope for every command execution
+    async Task ExecuteScoped<TCommand>(TCommand command, Func<ICommandHandler, TCommand, Task> action)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler>();
+        await action(handler, command);
+    }
+
+    dispatcher.RegisterHandler<NewPostCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<EditMessageCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<LikePostCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<AddCommentCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<EditCommentCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<RemoveCommentCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<DeletePostCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
+    dispatcher.RegisterHandler<DeleteCommentCommand>(cmd => ExecuteScoped(cmd, (h, c) => h.HandleAsync(c)));
 
     return dispatcher;
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
+using var scope = app.Services.CreateScope();
 app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
+app.MapControllers();
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

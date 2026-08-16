@@ -3,7 +3,7 @@ using CQRS.Core.Infrastructure;
 
 namespace Post.Cmd.Infrastructure.Dispatchers;
 
-public class CommandDispatcher : ICommandDispacher
+public class CommandDispatcher : ICommandDispatcher
 {
     private readonly Dictionary<Type, Func<BaseCommand, Task>> _handlers = [];
 

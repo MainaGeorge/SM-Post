@@ -12,7 +12,8 @@ public class EventStoreRepository : IEventStoreRepository
 
     public EventStoreRepository(IOptions<MongoDbConfig> config)
     {
-        var mongoClient = new MongoClient(config.Value.ConnectionString);
+        var mongoUrlBuilder = new MongoUrlBuilder(config.Value.ConnectionString) { Username = config.Value.Username, Password = config.Value.Password};
+        var mongoClient = new MongoClient(mongoUrlBuilder.ToMongoUrl());
         var mongoDatabase = mongoClient.GetDatabase(config.Value.Database);
 
         _eventStoreCollection = mongoDatabase.GetCollection<EventModel>(config.Value.Collection);
