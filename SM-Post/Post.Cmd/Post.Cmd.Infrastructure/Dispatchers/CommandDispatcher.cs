@@ -12,7 +12,7 @@ public class CommandDispatcher : ICommandDispatcher
         var type = typeof(T);
 
         if (_handlers.ContainsKey(type))
-            throw new IndexOutOfRangeException($"You can not register the same handler twice (handler for {type.Name}");
+            throw new InvalidOperationException($"You can not register the same handler twice (handler for {type.Name}");
 
         _handlers.Add(type, x => handler((T)x));
     }
@@ -22,6 +22,6 @@ public class CommandDispatcher : ICommandDispatcher
         if (_handlers.TryGetValue(command.GetType(), out var handler))
             await handler(command);
         else
-            throw new ArgumentNullException(nameof(handler), "No command handler was registered!");
+            ArgumentNullException.ThrowIfNull(handler, "No command handler was registered!");
     }
 }

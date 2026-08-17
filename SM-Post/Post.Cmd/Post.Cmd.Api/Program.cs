@@ -1,13 +1,10 @@
 using Confluent.Kafka;
 using CQRS.Core.Domain;
-using CQRS.Core.Events;
 using CQRS.Core.Handlers;
 using CQRS.Core.Infrastructure;
 using CQRS.Core.Producers;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
 using Post.Cmd.Api.Commands;
+using Post.Cmd.Api.ConfigurationsExtensions;
 using Post.Cmd.Domain.Aggregates;
 using Post.Cmd.Infrastructure.Config;
 using Post.Cmd.Infrastructure.Dispatchers;
@@ -15,26 +12,14 @@ using Post.Cmd.Infrastructure.Handlers;
 using Post.Cmd.Infrastructure.Producers;
 using Post.Cmd.Infrastructure.Repositories;
 using Post.Cmd.Infrastructure.Stores;
+using Post.Common.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// Register the hierarchy of the events to mongo
+MongoConfiguration.RegisterEventClassMaps(typeof(PostLikedEvent));
+
 builder.Services.AddControllers();
-BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
-
-// Register the event classes for deserialization in mongo
-var eventTypes = typeof(BaseEvent).Assembly.GetTypes()
-    .Where(t => typeof(BaseEvent).IsAssignableFrom(t) && !t.IsAbstract);
-
-foreach (var type in eventTypes)
-{
-    if (!BsonClassMap.IsClassMapRegistered(type))
-    {
-        BsonClassMap.LookupClassMap(type);
-    }
-}
-
 builder.Services.Configure<MongoDbConfig>(builder.Configuration.GetSection(nameof(MongoDbConfig)));
 builder.Services.Configure<ProducerConfig>(builder.Configuration.GetSection(nameof(ProducerConfig)));
 builder.Services.AddScoped<IEventStoreRepository, EventStoreRepository>();
@@ -69,8 +54,6 @@ builder.Services.AddSingleton<ICommandDispatcher>(sp =>
 });
 
 var app = builder.Build();
-
-using var scope = app.Services.CreateScope();
 app.UseHttpsRedirection();
 app.MapControllers();
 app.Run();

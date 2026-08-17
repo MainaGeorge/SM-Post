@@ -17,7 +17,7 @@ public class EventStore(IEventStoreRepository eventStoreRepository, IEventProduc
         if (eventStream is null || eventStream.Count == 0)
             throw new AggregateNotFoundException("incorrect post id provided");
 
-        return eventStream.OrderBy(v => v.Version).Select(x => x.EventData).ToList();
+        return [.. eventStream.OrderBy(v => v.Version).Select(x => x.EventData)];
     }
 
     public async Task SaveEventAsync(Guid aggregateId, IEnumerable<BaseEvent> events, int expectedVersion)

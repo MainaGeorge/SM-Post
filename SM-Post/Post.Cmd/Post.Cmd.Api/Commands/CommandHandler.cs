@@ -15,14 +15,14 @@ public class CommandHandler(IEventSourcingHandler<PostAggregate> eventSourcingHa
     public async Task HandleAsync(DeleteCommentCommand command)
     {
         var aggregate = await eventSourcingHandler.GetByIdAsync(command.Id);
-        aggregate.RemoveComment(command.Id, command.Username);
+        aggregate.RemoveComment(command.CommentId, command.Username);
         await eventSourcingHandler.SaveAsync(aggregate);
     }
 
     public async Task HandleAsync(EditCommentCommand command)
     {
         var aggregate = await eventSourcingHandler.GetByIdAsync(command.Id);
-        aggregate.EditComment(command.Id, command.Comment, command.Username);
+        aggregate.EditComment(command.CommentId, command.Comment, command.Username);
         await eventSourcingHandler.SaveAsync(aggregate);
 
     }
