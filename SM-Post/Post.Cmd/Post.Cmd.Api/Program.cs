@@ -53,6 +53,7 @@ builder.Services.AddSingleton<ICommandDispatcher>(sp =>
     return dispatcher;
 });
 
+
 var app = builder.Build();
 app.UseHttpsRedirection();
 app.MapControllers();
